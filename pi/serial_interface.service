@@ -1,0 +1,11 @@
+[Unit]
+Description=HASP serial interface module
+
+[Service]
+ExecStart=/home/andrew/hasp/serial_interface.py
+Type=simple
+WorkingDirectory=/home/andrew/hasp
+
+[Install]
+WantedBy=multi-user.target
+Alias=serial_interface

@@ -14,7 +14,6 @@ LOG_FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=LOG_FORMAT)
 logger = logging.getLogger('serial_interface')
 
-
 def discover_arduinos():
     """
     Discover all Arduinos connected to the system and return their device paths
@@ -27,7 +26,7 @@ def discover_arduinos():
         return paths
 
     for id in serial_ids.stdout:
-        id = id.decode('ascii').strip()
+        id = id.decode('utf8').strip()
 
         if re.search(r"Arduino", id):
             sym_link = Popen(['file', '/dev/serial/by-id/' + id], stdout=PIPE)

@@ -13,7 +13,7 @@
 
 // I2C devices
 #define GYRO 12
-#define PRESSURE 13
+#define PRESSURE_S 13
 
 // Digital devices
 #define CLK 14
@@ -57,8 +57,11 @@ void send_data(char device_id, String data)
     case GYRO:
       device_str = "GYRO: ";
       break;
-    case PRESSURE:
-      device_str = "PRESSURE: ";
+    case PRESSURE_S:
+      device_str = "PRESSURE_S: ";
+      break;
+   case HUMIDITY:
+      device_str = "HUMIDITY: ";
       break;
    case CLK:
       device_str = "CLK: ";

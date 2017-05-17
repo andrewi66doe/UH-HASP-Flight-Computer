@@ -13,6 +13,12 @@ String readTemp(int pin)
   return String(temp_f);  
 }
 
-
+String readHumidity(int pin)
+{
+  float voltage = analogRead(pin) * 5 / 1023;
+  float relative_humidity = (voltage / (.0062 * 5)) - 25.81;
+  float true_humidity = relative_humidity/(1.0546 - (0.00216 * (readTemp(TEMP_0)).toFloat()));
+  return String(true_humidity);
+}
 
 

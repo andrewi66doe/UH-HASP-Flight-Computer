@@ -20,9 +20,9 @@ def sendto(splitlist):
 
 def write_token_data():
     for token in tokens:
-        filename = token.strip().strip(':') + '.data'
+        filename = token.strip().strip(':') + '.csv'
 
-        with open(filename, 'a') as output_stream:
+        with open(filename, 'w') as output_stream:
             writer = csv.writer(output_stream, dialect=csv.excel,
                                  quoting=csv.QUOTE_NONNUMERIC)
             writer.writerow(["Date", "Time", "---", "Sensor Name", "Data"])

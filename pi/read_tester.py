@@ -5,6 +5,8 @@
 import datetime
 import csv
 
+from sys import argv
+
 tokens = {}
 
 
@@ -30,7 +32,11 @@ def write_token_data():
 
 
 if __name__ == "__main__":
-    with open('readings_new.data', 'r') as input_stream:
+    if len(argv) < 2:
+        print("USAGE: {} <data filename>")
+        exit(0)
+
+    with open(argv[1], 'r') as input_stream:
         for i in input_stream:
             i = i.replace('[', "")
             i = i.replace(']', "")

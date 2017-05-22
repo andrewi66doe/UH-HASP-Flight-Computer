@@ -32,11 +32,15 @@ def write_token_data():
 
 
 if __name__ == "__main__":
-    if len(argv) < 2:
-        print("USAGE: {} <data filename>")
+    if len(argv) == 2:
+        filename = argv[1]
+    elif len(argv) < 2:
+        filename = "readings.data"
+    else:
+        print("USAGE: {} <data filename>".format(arg[0]))
         exit(0)
 
-    with open(argv[1], 'r') as input_stream:
+    with open(filename, 'r') as input_stream:
         for i in input_stream:
             i = i.replace('[', "")
             i = i.replace(']', "")

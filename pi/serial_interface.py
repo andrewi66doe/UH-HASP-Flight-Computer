@@ -8,7 +8,7 @@ import logging
 from time import sleep
 from subprocess import Popen, PIPE
 
-BAUD_RATE = 9600
+BAUD_RATE = 115200
 LOG_FORMAT = '%(asctime)-15s %(message)s'
 
 logging.basicConfig(format=LOG_FORMAT)
@@ -48,7 +48,7 @@ def read_data(device_path):
     ser = serial.Serial(device_path, BAUD_RATE, timeout=1)
     while True:
         try:
-            line = ser.readline().decode("ascii")
+            line = ser.readline().decode("utf8", "replace")
         except serial.serialutil.SerialException:
             connected = False
             attempts = 1

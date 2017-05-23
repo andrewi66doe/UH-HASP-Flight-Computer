@@ -16,7 +16,7 @@
 Scheduler scheduler = Scheduler();
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   // Set up pressure sensor
   pressure_sensor.reset();
   pressure_sensor.begin();

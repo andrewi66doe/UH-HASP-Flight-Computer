@@ -2,6 +2,8 @@
 // Comment this line to turn off debug messages
 #define DEBUG
 
+#include "SparkFunDS3234RTC.h"
+
 #include "debug.h"
 #include "devices.h"
 #include "pins.h"
@@ -14,13 +16,16 @@
 // Functions pertaining to digital devices
 #include "digital.h"
 
-
+#define DS13074_CS_PIN 53
 
 Scheduler scheduler = Scheduler();
 
 void setup() {
   Serial.begin(115200);
   message("Initializing...");
+  rtc.begin(DS13074_CS_PIN);
+  rtc.autoTime();
+  message("Initialized RTC");
   // Set up pressure sensor
   pressure_sensor.reset();
   pressure_sensor.begin();
@@ -36,6 +41,7 @@ void setup() {
 }
 
 void loop() {
+  rtc.update();
   scheduler.update();
 }
 
@@ -44,8 +50,9 @@ void read_temp()
   // Take temperature readings from all temp sensors?
   // Just TEMP_0 for now though
   message("Taking temperature readings...");
-  send_data(TEMP_0, readTemp(TEMP_5_PIN));
-  message("Digital Temp: " + String(pressure_sensor.getTemperature(FAHRENHEIT, ADC_2048)));
+  send_data(TEMP_0, readTemp(TEMP_0_PIN));
+  send_data(TEMP_1, String(pressure_sensor.getTemperature(FAHRENHEIT, ADC_2048)));
+  send_data(TEMP_2, readTemp(TEMP_2_PIN));
   //delay(1000);
   scheduler.schedule(read_temp, 2000);
 }
@@ -84,4 +91,6 @@ void read_gyro()
   message("Taking gyroscope readings...");
   scheduler.schedule(read_gyro, 2000);
 }
+
+
 

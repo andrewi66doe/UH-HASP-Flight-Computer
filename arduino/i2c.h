@@ -23,6 +23,7 @@ double altitude(double P, double P0)
 {
   return(44330.0*(1-pow(P/P0,1/5.255)));
 }
+
 // End shamelessly stolen code
 
 String getPressure()

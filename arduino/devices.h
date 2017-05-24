@@ -18,6 +18,8 @@
 // Digital devices
 #define CLK 14
 
+String timeStamp();
+
 
 void send_data(char device_id, String data)
 {
@@ -68,7 +70,38 @@ void send_data(char device_id, String data)
       break;
     
   }
-  Serial.println("[DATA] " + device_str + data); 
+  
+  Serial.println("[" + timeStamp() + "] " + "[DATA] " + device_str + data); 
 }
 
+
+String timeStamp()
+{
+  String timestamp = String(rtc.hour()) + ":";
+  
+  if (rtc.minute() < 10)
+    timestamp = timestamp + "0";
+  timestamp = timestamp + String(rtc.minute()) + ":"; // Print minute
+  if (rtc.second() < 10)
+    timestamp = timestamp + "0";
+  timestamp = timestamp + String(rtc.second()) + " "; // Print second
+  
+
+  if (rtc.is12Hour()) // If we're in 12-hour mode
+  {
+    // Use rtc.pm() to read the AM/PM state of the hour
+    if (rtc.pm()) Serial.print(" PM"); // Returns true if PM
+    else Serial.print(" AM");
+  }
+  
+  //Serial.print(" | ");
+
+  // Few options for printing the day, pick one:
+  //Serial.print(rtc.dayStr()); // Print day string
+  //Serial.print(rtc.dayC()); // Print day character
+  //Serial.print(rtc.day()); // Print day integer (1-7, Sun-Sat)
+  timestamp = timestamp + String(rtc.month()) + "/" + String(rtc.date()) + "/" + String(rtc.year());
+
+  return timestamp;
+}
 

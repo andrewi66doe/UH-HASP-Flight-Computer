@@ -26,7 +26,7 @@ String readUV(int pin)
 {
   float reading = analogRead(pin);
   float volts = reading / (1024 * 5);
-  Serial.print("[DATA] PHOTO_0: ");
+  Serial.print("[" + timeStamp() + "] " + "[DATA] PHOTO_0: ");
   Serial.print(volts, 7);
   Serial.print('\n');
 

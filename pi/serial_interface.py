@@ -74,7 +74,8 @@ def read_data(device_path):
             ser.close()
             exit(0)
 
-        log_line = '[' + str(datetime.datetime.utcnow()) + '] ' + line
+        #log_line = '[' + str(datetime.datetime.utcnow()) + '] ' + line
+        log_line = line
 
         debug_messages = open("messages.data", "a")
         sensor_readings = open("readings.data", "a")

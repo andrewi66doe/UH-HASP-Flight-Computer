@@ -39,13 +39,15 @@ if __name__ == "__main__":
     else:
         print("USAGE: {} <data filename>".format(arg[0]))
         exit(0)
-
-    with open(filename, 'r') as input_stream:
-        for i in input_stream:
-            i = i.replace('[', "")
-            i = i.replace(']', "")
-            splitlist = i.split()
-            # print(splitlist)
-            sendto(splitlist)
-
+    try:
+        with open(filename, 'r') as input_stream:
+            for i in input_stream:
+                i = i.replace('[', "")
+                i = i.replace(']', "")
+                splitlist = i.split()
+                # print(splitlist)
+                sendto(splitlist)
+    except:
+        print("Failed to open file \"{}\"".format(filename))
+	exit(0);
     write_token_data()

@@ -1,31 +1,48 @@
-// Analog devices
-#define TEMP_0 1
-#define TEMP_1 2
-#define TEMP_2 3
-#define TEMP_3 4
-#define TEMP_4 5
-#define TEMP_5 6
-#define TEMP_6 7
-#define HUMIDITY 8
-#define PHOTO_0 9
-#define PHOTO_1 10
-#define PHOTO_2 11
+#include "SparkFunDS3234RTC.h"
 
-// I2C devices
-#define GYRO 12
-#define PRESSURE_S 13
+#define TEMP_INTERVAL     2000
+#define PRESSURE_INTERVAL 2000
+#define PHOTO_INTERVAL    2000
+#define TEMP_INTERVAL     2000
+#define HUMIDITY_INTERVAL 2000
 
-// Digital devices
-#define CLK 14
+enum Device{
+  // Analog devices
+  TEMP_0,
+  TEMP_1,
+  TEMP_2, 
+  TEMP_3,
+  TEMP_4,
+  TEMP_5,
+  TEMP_6,
+  HUMIDITY,
+  PHOTO_0,
+  PHOTO_1,
+  PHOTO_2,
+  PRESSURE_S,
+
+  // I2C devices
+  GYRO,
+  ACCEL,
+  MAGNO,
+  IDK,
+  YAW,
+  PITCH,
+  ROLL,
+  RATE,
+
+  // Digital devices
+  CLK
+};
 
 String timeStamp();
 
 
-void send_data(char device_id, String data)
+void send_data(Device dev, String data)
 {
   String device_str;
   
-  switch(device_id) {
+  switch(dev) {
     case TEMP_0:
       device_str = "TEMP_0: ";
       break;
@@ -56,8 +73,29 @@ void send_data(char device_id, String data)
     case PHOTO_2:
       device_str = "PHOTO_2: ";
       break;
+    case ACCEL:
+      device_str = "ACCEL: ";
+      break;
     case GYRO:
       device_str = "GYRO: ";
+      break;
+    case MAGNO:
+      device_str = "MAGNO: ";
+      break;
+    case IDK:
+      device_str = "IDK: ";
+      break;
+    case YAW:
+      device_str = "YAW: ";
+      break; 
+    case PITCH:
+      device_str = "PITCH: ";
+      break; 
+    case ROLL:
+      device_str = "ROLL: ";
+      break;
+    case RATE:
+      device_str = "RATE: ";
       break;
     case PRESSURE_S:
       device_str = "PRESSURE_S: ";

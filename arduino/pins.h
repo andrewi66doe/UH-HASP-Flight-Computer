@@ -23,4 +23,6 @@
 
 #define I2C_SCL 21
 #define I2C_SDA 20
+#define DS13074_CS_PIN 53
+
 

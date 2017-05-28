@@ -2,8 +2,6 @@
 // Comment this line to turn off debug messages
 #define DEBUG
 
-#include "SparkFunDS3234RTC.h"
-
 #include "debug.h"
 #include "devices.h"
 #include "pins.h"
@@ -16,36 +14,22 @@
 // Functions pertaining to digital devices
 #include "digital.h"
 
-#define DS13074_CS_PIN 53
+// Callbacks
+void read_temp_cb();
+void read_pressure_cb();
+void read_humidity_cb();
+void read_uv_cb();
 
-Scheduler scheduler = Scheduler();
+// Tasks
+Task read_temp(TEMP_INTERVAL, TASK_FOREVER, &read_temp_cb);
+Task read_pressure(TEMP_INTERVAL, TASK_FOREVER, &read_pressure_cb);
+Task read_humidity(TEMP_INTERVAL, TASK_FOREVER, &read_humidity_cb);
+Task read_uv(TEMP_INTERVAL, TASK_FOREVER, &read_uv_cb);
 
-void setup() {
-  Serial.begin(115200);
-  message("Initializing...");
-  rtc.begin(DS13074_CS_PIN);
-  rtc.autoTime();
-  message("Initialized RTC");
-  // Set up pressure sensor
-  pressure_sensor.reset();
-  pressure_sensor.begin();
-  
-  // For now take readings on all sensors once every two seconds
-  // We can change this in the future, and sensors can be scheduled independently
-  scheduler.schedule(read_temp, 2000);
-  scheduler.schedule(read_pressure, 2000);
-  //delay(1000);
-  scheduler.schedule(read_humidity, 3000);  
-  //scheduler.schedule(read_gyro, 2000);
-  scheduler.schedule(read_uv, 1000);
-}
+Scheduler scheduler;
 
-void loop() {
-  rtc.update();
-  scheduler.update();
-}
 
-void read_temp()
+void read_temp_cb()
 {
   // Take temperature readings from all temp sensors?
   // Just TEMP_0 for now though
@@ -53,44 +37,78 @@ void read_temp()
   send_data(TEMP_0, readTemp(TEMP_0_PIN));
   send_data(TEMP_1, String(pressure_sensor.getTemperature(FAHRENHEIT, ADC_2048)));
   send_data(TEMP_2, readTemp(TEMP_2_PIN));
-  //delay(1000);
-  scheduler.schedule(read_temp, 2000);
 }
 
-void read_pressure()
+void read_pressure_cb()
 {
   // Take a pressure reading
   message("Taking pressure readings...");
   send_data(PRESSURE_S, getPressure());
-  scheduler.schedule(read_pressure, 2000);
 }
 
-void read_humidity()
+void read_humidity_cb()
 {
   message("Taking humidity readings...");
   send_data(HUMIDITY, readHumidity(HUMIDITY_PIN));
-  scheduler.schedule(read_humidity, 3000);
 }
 
-void read_uv()
+void read_uv_cb()
 {
   // Take readings from all UV sensors
   message("Taking UV readings...");
   readUV(PHOTO_0_PIN);
   //send_data(PHOTO_0, readUV(PHOTO_0_PIN));
-  //delay(500);
   //send_data(PHOTO_1, readUV(PHOTO_1_PIN));
-  //delay(500);
   //send_data(PHOTO_2, readUV(PHOTO_2_PIN));
-  scheduler.schedule(read_uv, 5000);
 }
 
-void read_gyro()
+void read_gyro_cb()
 {
   // Take readings from the gyrocope
   message("Taking gyroscope readings...");
-  scheduler.schedule(read_gyro, 2000);
 }
+
+void read_accel_cb() {
+  // Take readings from the mpu9250
+  message("Taking accelerometer readings...");
+  mpu9250_read();
+}
+
+
+void setup() {
+  Serial.begin(115200);
+  analogReference(EXTERNAL);
+  
+  message("Initializing...");
+
+  message("Initializing RTC...");
+  rtc.begin(DS13074_CS_PIN);
+  rtc.autoTime();
+  rtc.set12Hour();
+  message("Initialized RTC successfully.");
+
+  message("Initializing Pressure Sensor...");
+  pressure_sensor.reset();
+  pressure_sensor.begin();
+  message("Initialized Pressure Sensor successfully.");
+
+  message("Initializing MPU9250...");
+  mpu9250_setup();
+  message("Initialized MPU9250 successfully.");
+ 
+  scheduler.init();
+  scheduler.addTask(read_temp);
+  scheduler.addTask(read_pressure);
+  scheduler.addTask(read_humidity);
+  scheduler.addTask(read_uv);
+}
+
+void loop() {
+  rtc.update();
+  scheduler.execute();
+}
+
+
 
 
 

@@ -1,5 +1,8 @@
 /* Code pertaining to i2c devices i,e the gyro and pressure sensors */
+// Gyro module library
 #include "SparkFun_MS5803_I2C.h"
+// RTC library
+#include "SparkFunDS3234RTC.h"
 
 // Base line altitude for Houston TX, for testing purposes only don't touch otherwise
 static double BASE_ALTITUDE = 80.0;

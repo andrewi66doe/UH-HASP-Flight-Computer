@@ -47,7 +47,7 @@ if __name__ == "__main__":
                 splitlist = i.split()
                 # print(splitlist)
                 sendto(splitlist)
-    except:
+    except FileNotFoundError:
         print("Failed to open file \"{}\"".format(filename))
-	exit(0);
+        exit(0);
     write_token_data()

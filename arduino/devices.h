@@ -2,7 +2,7 @@
 
 #define TEMP_INTERVAL     2000
 #define PRESSURE_INTERVAL 2000
-#define PHOTO_INTERVAL    2000
+#define UV_INTERVAL    2000
 #define TEMP_INTERVAL     2000
 #define HUMIDITY_INTERVAL 2000
 
@@ -23,7 +23,9 @@ enum Device{
 
   // I2C devices
   GYRO,
-  ACCEL,
+  ACCEL_X,
+  ACCEL_Y,
+  ACCEL_Z,
   MAGNO,
   IDK,
   YAW,
@@ -73,8 +75,14 @@ void send_data(Device dev, String data)
     case PHOTO_2:
       device_str = "PHOTO_2: ";
       break;
-    case ACCEL:
-      device_str = "ACCEL: ";
+    case ACCEL_X:
+      device_str = "ACCEL_X: ";
+      break;
+    case ACCEL_Y:
+      device_str = "ACCEL_Y: ";
+      break;
+    case ACCEL_Z:
+      device_str = "ACCEL_Z: ";
       break;
     case GYRO:
       device_str = "GYRO: ";

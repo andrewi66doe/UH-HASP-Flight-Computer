@@ -1,36 +1,55 @@
 /* Code pertaining to analog devices, i.e the UV and temperature sensors */
 
-float getVcc();
+#include "SparkFun_HIH4030.h"
+
+#define HIH4030_OUT 10
+
+// Supply Voltage - Typically 5 V
+#define HIH4030_SUPPLY 5.00
+
+
+HIH4030 humiditySensor(HIH4030_OUT, HIH4030_SUPPLY);
+
+
+int averageAnalogRead(int pinToRead);
+
+float readVcc() {
+  long result;
+  // Read 1.1V reference against AVcc
+  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  delay(2); // Wait for Vref to settle
+  ADCSRA |= _BV(ADSC); // Convert
+  while (bit_is_set(ADCSRA,ADSC));
+  result = ADCL;
+  result |= ADCH<<8;
+  result = 1125300L / result; // Back-calculate AVcc in mV
+  return 5.0;
+}
 
 String readTemp(int pin)
 {
   float reading = analogRead(pin);
-  float voltage = reading * 1.1;
-  voltage /= 1023.0;
+  float voltage = reading * 5.2;
+  voltage /= 1024.0;
 
   float temp_c = (voltage - 0.5) * 100 ;
   float temp_f = (temp_c * 9.0 / 5.0) + 32.0;
-  //float voltage = analogRead(device_id) * (5000/1024);
-  //float temp = (((voltage - .5) * 100) * 1.8) + 32;
   return String(temp_f);  
 }
 
-String readHumidity(int pin)
+String readHumidityReal(int pin)
 {
-  float voltage = analogRead(pin) * 5 / 1023;
-  float relative_humidity = (voltage / (.0062 * 5)) - 25.81;
-  float true_humidity = relative_humidity/(1.0546 - (0.00216 * pressure_sensor.getTemperature(FAHRENHEIT, ADC_2048)));
-  return String(true_humidity);
+  float temp = pressure_sensor.getTemperature(CELSIUS, ADC_4096);
+  float humidity = humiditySensor.getTrueRH(temp);
+  return String(humidity);
 }
+
 
 String readUV(int pin)
 {
   float reading = analogRead(pin);
-  float volts = reading / 1024.0 * 5;
-
-
-
-
+  float volts = reading * readVcc();
+  volts /= 1023.0;
   Serial.print("[" + timeStamp() + "] " + "[DATA] PHOTO_" + pin +": ");
   Serial.print(volts, 7);
   Serial.print('\n');
@@ -39,14 +58,15 @@ String readUV(int pin)
   
 }
 
-float getVcc() { // Returns actual value of Vcc (in milliVolts), modified code copied from the forum
-  const int32_t InternalReferenceVoltage = 1100; // assume perfect 1.1V reference voltage, the absolute error does not matter much
-  // REFS1 REFS0          --> 0 1, AVcc internal ref. -Selects AVcc external reference
-  // MUX3 MUX2 MUX1 MUX0  --> 1110 1.1V (VBG)         -Selects channel 14, bandgap voltage, to measure
-  ADMUX = _BV (REFS0) | _BV (MUX3) | _BV (MUX2) | _BV (MUX1);
-  delay(2); // this seems necessary for a stable reading
-  ADCSRA |= _BV( ADSC ); // Start a conversion
-  while ((ADCSRA & _BV(ADSC))); // Wait for it to complete
-  return (float)(((InternalReferenceVoltage * 1024L) / ADC) + 5L); // Scale and round the value
+int averageAnalogRead(int pinToRead)
+{
+  byte numberOfReadings = 8;
+  unsigned int runningValue = 0; 
+
+  for(int x = 0 ; x < numberOfReadings ; x++)
+    runningValue += analogRead(pinToRead);
+  runningValue /= numberOfReadings;
+
+  return(runningValue);  
 }
 

@@ -13,7 +13,7 @@
 
 #define HUMIDITY_PIN 10
 
-// Digital pins
+// RTC pins
 
 #define RTC_SS 53
 #define RTC_MOSI 51
@@ -24,5 +24,17 @@
 #define I2C_SCL 21
 #define I2C_SDA 20
 #define DS13074_CS_PIN 53
+
+// LED Status Pins
+#define RTC_STATUS         2
+#define MS5803_STATUS      4
+#define BNO055_STATUS      6
+
+void setupPins()
+{
+  pinMode(RTC_STATUS, OUTPUT);
+  pinMode(MS5803_STATUS, OUTPUT);
+  pinMode(BNO055_STATUS, OUTPUT);
+}
 
 

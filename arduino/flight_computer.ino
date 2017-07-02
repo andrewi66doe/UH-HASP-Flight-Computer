@@ -7,6 +7,7 @@
 #include "devices.h"
 #include "pins.h"
 #include "Scheduler.h"
+#include "sma.h"
 
 SoftwareSerial LCD(3,5);
 #include "songs.h"
@@ -130,36 +131,21 @@ void setup() {
   
 }
 
-float x_vals[SMA_ITERATIONS];
-float tmp_f;
-float sumx;
-int iter=0;
+
+float readTemp2()
+{
+  return readTemp(TEMP_2_PIN);
+}
+SMAFilter tmp_filter(10, 1, readTemp2);
 
 void loop() {
   readBNO055();
   rtc.update();
   scheduler.execute();
 
-  float tmp = readTemp(TEMP_2_PIN).toFloat();
-  if(iter <= SMA_ITERATIONS){
-    x_vals[iter] = tmp;
-  }else{
-    sumx=0;
-    // Calculate moving average
-    for(int i=0;i<SMA_ITERATIONS;i++){
-      sumx += x_vals[i];
-      tmp_f = sumx/SMA_ITERATIONS;
-    }
-    // Shift values left
-    for(int i=1;i<SMA_ITERATIONS;i++){
-      x_vals[i-1] = x_vals[i];
-    }
-    x_vals[SMA_ITERATIONS-1] = tmp;
-  }
 
-  iter++;
   LCD.write(128);
-  LCD.println("T: " + String(tmp_f) + " " + String(readTemp(TEMP_0_PIN)));
+  LCD.println("T: " + tmp_filter.getFilteredValue() + " " + String(readTemp(TEMP_0_PIN)));
   LCD.write(148);
   LCD.println("P: " + getPressure());
   delay(500);

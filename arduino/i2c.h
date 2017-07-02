@@ -4,7 +4,12 @@
 // RTC library
 #include "SparkFunDS3234RTC.h"
 
+#include <EEPROM.h>
+
 #include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
 
 #define    MPU9250_ADDRESS            0x68
 #define    MAG_ADDRESS                0x0C
@@ -25,22 +30,15 @@
 
 #define SMA_ITERATIONS 5
 
-// Base line altitude for Houston TX, for testing purposes only don't touch otherwise
-static double BASE_ALTITUDE = 80.0;
 
+#define BNO055_SAMPLERATE_DELAY_MS (100)
+
+Adafruit_BNO055 bno = Adafruit_BNO055(55);
 MS5803 pressure_sensor(ADDRESS_HIGH);
 
-// Filtered accelerometer values 
-float ax_f=0, ay_f=0, az_f=0;
-long int iter=0;
 
-// Arrays to store data points for SMA filter
-int16_t x_vals[SMA_ITERATIONS];
-int16_t y_vals[SMA_ITERATIONS];
-int16_t z_vals[SMA_ITERATIONS];
-
-// Sums for calculating averages for each accelerometer axis
-int16_t sumx,sumy,sumz;
+// Base line altitude for Houston TX, for testing purposes only don't touch otherwise
+static double BASE_ALTITUDE = 80.0;
 
 
 // This function read Nbytes bytes from I2C device at address Address. 
@@ -72,76 +70,17 @@ void I2CwriteByte(uint8_t Address, uint8_t Register, uint8_t Data)
   delay(40);
 }
 
-void initGyro()
+void readBNO055()
 {
-  uint8_t WHOAMI;
+  sensors_event_t event;
+  bno.getEvent(&event);
   
-  I2Cread(MAG_ADDRESS, AK8963_WHO_AM_I, 1, &WHOAMI);
-  
-  if(WHOAMI != 0x48){
-    error("Gyroscope Identification Register is invalid!");
-    error("Failed to initialize gyroscope.");
-    return;
-  }
-  
-  I2CwriteByte(MAG_ADDRESS, AK8963_CNTL, 0x00);
-  delay(10);
-  I2CwriteByte(MAG_ADDRESS, AK8963_CNTL, 0x0F);
-  delay(10);
-  I2CwriteByte(MPU9250_ADDRESS,27,GYRO_FULL_SCALE_2000_DPS); // Configure gyroscope range
-  delay(10);
-  I2CwriteByte(MAG_ADDRESS, AK8963_CNTL, 0x00); // Power down magnetometer  
-  delay(10);
-  I2CwriteByte(MAG_ADDRESS, AK8963_CNTL, 0x06);
-  delay(10);
-  I2CwriteByte(MAG_ADDRESS,0x0A,0x01); // Request first response from gyro
-  delay(10);
-}
-
-void AccelerometerRead(){
-  uint8_t Buf[6];
-  // Read Accelerometer values from registers
-  I2Cread(MPU9250_ADDRESS,0x3B,6,Buf);
-  
-  // Convert hi and low order bits of accelerometer registers to full 16-bit values
-  // Accelerometer
-  int16_t ax=-(Buf[0]<<8 | Buf[1]);
-  int16_t ay=-(Buf[2]<<8 | Buf[3]);
-  int16_t az=Buf[4]<<8 | Buf[5];
-
-  // Need to take 5 readings before we can maintain a filtered data point
-  if(iter <= SMA_ITERATIONS){
-    x_vals[iter] = ax;
-    y_vals[iter] = ay;
-    z_vals[iter] = az;
-  }else{
-    sumx=0;sumy=0;sumz=0;
-    // Calculate moving average
-    for(int i=0;i<SMA_ITERATIONS;i++){
-      sumx += x_vals[i];
-      sumy += y_vals[i];
-      sumz += z_vals[i];
-      ax_f = sumx/SMA_ITERATIONS;
-      ay_f = sumy/SMA_ITERATIONS;
-      az_f = sumz/SMA_ITERATIONS;
-    }
-    // Shift values left
-    for(int i=1;i<SMA_ITERATIONS;i++){
-      x_vals[i-1] = x_vals[i];
-      y_vals[i-1] = y_vals[i];
-      z_vals[i-1] = z_vals[i];
-    }
-    x_vals[SMA_ITERATIONS-1] = ax;
-    y_vals[SMA_ITERATIONS-1] = ay;
-    z_vals[SMA_ITERATIONS-1] = az;
-  }
-  send_data(ACCEL_X, String(ax_f));
-  send_data(ACCEL_Y, String(ay_f));
-  send_data(ACCEL_Z, String(az_f));
-  iter++;
+  send_data(ACCEL_X, String(event.orientation.x));
+//  Serial.println(String(event.orientation.x) + " " + String(event.orientation.y) + " " + String(event.orientation.z));
+  send_data(ACCEL_Y, String(event.orientation.y));
+  send_data(ACCEL_Z, String(event.orientation.z));
   
 }
-
 
 
 // Shamelessly stolen code below
@@ -178,6 +117,209 @@ String getRelativePressure(double baseline)
 {
   float pressure_abs = pressure_sensor.getPressure(ADC_4096);
   return String(sealevel(pressure_abs, baseline));
+}
+
+void displaySensorDetails(void)
+{
+  sensor_t sensor;
+  bno.getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
+  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
+  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
+  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" xxx");
+  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" xxx");
+  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" xxx");
+  Serial.println("------------------------------------");
+  Serial.println("");
+  delay(500);
+}
+
+/**************************************************************************/
+/*
+    Display some basic info about the sensor status
+*/
+/**************************************************************************/
+void displaySensorStatus(void)
+{
+  /* Get the system status values (mostly for debugging purposes) */
+  uint8_t system_status, self_test_results, system_error;
+  system_status = self_test_results = system_error = 0;
+  bno.getSystemStatus(&system_status, &self_test_results, &system_error);
+
+  /* Display the results in the Serial Monitor */
+  Serial.println("");
+  Serial.print("System Status: 0x");
+  Serial.println(system_status, HEX);
+  Serial.print("Self Test:     0x");
+  Serial.println(self_test_results, HEX);
+  Serial.print("System Error:  0x");
+  Serial.println(system_error, HEX);
+  Serial.println("");
+  delay(500);
+}
+
+/**************************************************************************/
+/*
+    Display sensor calibration status
+*/
+/**************************************************************************/
+void displayCalStatus(void)
+{
+  /* Get the four calibration values (0..3) */
+  /* Any sensor data reporting 0 should be ignored, */
+  /* 3 means 'fully calibrated" */
+  uint8_t system, gyro, accel, mag;
+  system = gyro = accel = mag = 0;
+  bno.getCalibration(&system, &gyro, &accel, &mag);
+
+  LCD.write(12);
+
+    /* Display the individual values */
+  LCD.print("Sys:");
+  LCD.print(system, DEC);
+  LCD.print(" G:");
+  LCD.print(gyro, DEC);
+  LCD.print(" A:");
+  LCD.print(accel, DEC);
+  LCD.print(" M:");
+  LCD.print(mag, DEC);
+  LCD.println();
+  delay(20);
+  
+}
+
+
+void setupBNO055()
+{
+  Serial.println("Orientation Sensor Test"); Serial.println("");
+
+    /* Initialise the sensor */
+    if (!bno.begin())
+    {
+        /* There was a problem detecting the BNO055 ... check your connections */
+        Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+        while (1);
+    }
+
+    int eeAddress = 0;
+    long bnoID;
+    bool foundCalib = false;
+
+    EEPROM.get(eeAddress, bnoID);
+
+    adafruit_bno055_offsets_t calibrationData;
+    sensor_t sensor;
+
+    /*
+    *  Look for the sensor's unique ID at the beginning oF EEPROM.
+    *  This isn't foolproof, but it's better than nothing.
+    */
+    bno.getSensor(&sensor);
+    if (bnoID != sensor.sensor_id)
+    {
+        Serial.println("\nNo Calibration Data for this sensor exists in EEPROM");
+        delay(500);
+    }
+    else
+    {
+        Serial.println("\nFound Calibration for this sensor in EEPROM.");
+        eeAddress += sizeof(long);
+        EEPROM.get(eeAddress, calibrationData);
+
+//        displaySensorOffsets(calibrationData);
+
+        Serial.println("\n\nRestoring Calibration data to the BNO055...");
+        bno.setSensorOffsets(calibrationData);
+
+        Serial.println("\n\nCalibration data loaded into BNO055");
+        foundCalib = true;
+    }
+
+    delay(1000);
+
+    /* Display some basic information on this sensor */
+    displaySensorDetails();
+
+    /* Optional: Display current status */
+    displaySensorStatus();
+
+    bno.setExtCrystalUse(true);
+
+    sensors_event_t event;
+    bno.getEvent(&event);
+    if (foundCalib){
+        Serial.println("Move sensor slightly to calibrate magnetometers");
+        while (!bno.isFullyCalibrated())
+        {
+            displayCalStatus();
+            bno.getEvent(&event);
+            delay(500);
+        }
+        LCD.write(12);
+        LCD.print("Calibrated!");
+    }
+    else
+    {
+        Serial.println("Please Calibrate Sensor: ");
+        while (!bno.isFullyCalibrated())
+        {
+            bno.getEvent(&event);
+
+            Serial.print("X: ");
+            Serial.print(event.orientation.x, 4);
+            Serial.print("\tY: ");
+            Serial.print(event.orientation.y, 4);
+            Serial.print("\tZ: ");
+            Serial.print(event.orientation.z, 4);
+
+            /* Optional: Display calibration status */
+            displayCalStatus();
+
+            /* New line for the next sample */
+            Serial.println("");
+
+            /* Wait the specified delay before requesting new data */
+            delay(BNO055_SAMPLERATE_DELAY_MS);
+        }
+    }
+
+    Serial.println("\nFully calibrated!");
+    Serial.println("--------------------------------");
+    Serial.println("Calibration Results: ");
+    adafruit_bno055_offsets_t newCalib;
+    bno.getSensorOffsets(newCalib);
+//    displaySensorOffsets(newCalib);
+
+    Serial.println("\n\nStoring calibration data to EEPROM...");
+
+    eeAddress = 0;
+    bno.getSensor(&sensor);
+    bnoID = sensor.sensor_id;
+
+    EEPROM.put(eeAddress, bnoID);
+
+    eeAddress += sizeof(long);
+    EEPROM.put(eeAddress, newCalib);
+    Serial.println("Data stored to EEPROM.");
+
+    Serial.println("\n--------------------------------\n");
+    delay(500);
+
+}
+
+void setupRTC()
+{
+  rtc.begin(DS13074_CS_PIN);
+  rtc.autoTime();
+  digitalWrite(RTC_STATUS, HIGH);
+}
+
+void setupMS5803()
+{
+  pressure_sensor.reset();
+  pressure_sensor.begin();
+  digitalWrite(MS5803_STATUS, HIGH);
 }
 
 

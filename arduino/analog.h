@@ -34,7 +34,7 @@ String readTemp(int pin)
 
   float temp_c = (voltage - 0.5) * 100 ;
   float temp_f = (temp_c * 9.0 / 5.0) + 32.0;
-  return temp_f;  
+  return String(temp_f);  
 }
 
 String readHumidityReal(int pin)

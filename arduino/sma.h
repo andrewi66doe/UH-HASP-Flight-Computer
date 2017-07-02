@@ -12,18 +12,17 @@ class SMAFilter{
     float (*sample_fn)(void);
 
   public:
-    SMAFilter(int count, int sample_delay, float (*sample_fn)(void));
+    SMAFilter(int count,float (*sample_fn)(void));
     ~SMAFilter();
     void setSampleCount(int count);
     float getFilteredSample();
     
 };
 
-SMAFilter::SMAFilter(int count, int sample_delay, float (*sample_fn)(void))
+SMAFilter::SMAFilter(int count, float (*sample_fn)(void))
 {
   iter = 0;
   num_samples = count;
-  this->sample_delay = sample_delay;
   this->sample_fn = sample_fn;
   samples = (float*)malloc(sizeof(float) * count);
 }

@@ -134,18 +134,17 @@ void setup() {
 
 float readTemp2()
 {
-  return readTemp(TEMP_2_PIN);
+  return readTemp(TEMP_2_PIN).toFloat();
 }
-SMAFilter tmp_filter(10, 1, readTemp2);
+SMAFilter tmp_filter(10, readTemp2);
 
 void loop() {
   readBNO055();
   rtc.update();
   scheduler.execute();
 
-
   LCD.write(128);
-  LCD.println("T: " + tmp_filter.getFilteredValue() + " " + String(readTemp(TEMP_0_PIN)));
+  LCD.println("T: " + String(tmp_filter.getFilteredSample()) + " " + String(readTemp(TEMP_0_PIN)));
   LCD.write(148);
   LCD.println("P: " + getPressure());
   delay(500);

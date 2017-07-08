@@ -30,8 +30,24 @@
 #define MS5803_STATUS      4
 #define BNO055_STATUS      6
 
+#define SOLENOID_RELAY_PIN  24
+#define UNDEFINED_RELAY_PIN 26
+#define PUMP_RELAY_PIN      28
+#define HEATER_RELAY_PIN    30
+
+
 void setupPins()
 {
+  pinMode(SOLENOID_RELAY_PIN, OUTPUT);
+  pinMode(UNDEFINED_RELAY_PIN, OUTPUT);
+  pinMode(PUMP_RELAY_PIN, OUTPUT);
+  pinMode(HEATER_RELAY_PIN, OUTPUT);
+  
+  digitalWrite(SOLENOID_RELAY_PIN, HIGH);
+  digitalWrite(UNDEFINED_RELAY_PIN, HIGH);
+  digitalWrite(PUMP_RELAY_PIN, HIGH);
+  digitalWrite(HEATER_RELAY_PIN, HIGH);
+  
   pinMode(RTC_STATUS, OUTPUT);
   pinMode(MS5803_STATUS, OUTPUT);
   pinMode(BNO055_STATUS, OUTPUT);

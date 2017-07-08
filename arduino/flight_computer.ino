@@ -3,13 +3,15 @@
 // Comment this line to turn off debug messages
 //#define DEBUG
 
-#include "debug.h"
+
 #include "devices.h"
 #include "pins.h"
+#include "debug.h"
 #include "Scheduler.h"
 #include "sma.h"
+#include "downlink.h"
 
-SoftwareSerial LCD(3,5);
+SoftwareSerial LCD(5,3);
 #include "songs.h"
 // Functions pertaining to i2c devices
 #include "i2c.h"
@@ -43,7 +45,7 @@ void read_temp_cb()
 //  send_data(TEMP_1, readTemp(TEMP_1_PIN));
   send_data(TEMP_2, readTemp(TEMP_2_PIN));
 //  send_data(TEMP_3, readTemp(TEMP_3_PIN));
-  send_data(TEMP_4, readTemp(TEMP_4_PIN));
+//  send_data(TEMP_4, readTemp(TEMP_4_PIN));
 //  send_data(TEMP_5, readTemp(TEMP_5_PIN));
   send_data(TEMP_6, readTemp(TEMP_6_PIN));
 }
@@ -83,18 +85,37 @@ void read_accel_cb() {
   readBNO055();
 }
 
+void wait_rpi_initialization()
+{
+  byte ack_byte;
+  
+  do{
+       wait_for_rx();
+       ack_byte = Serial.read();
+       if(ack_byte == 0xdd){
+        debugInterface();
+        break;
+      }
+      if(ack_byte != 0xff){
+        warning("Did not recieve valid ack byte!! Trying again...");
+      }
+  }while(ack_byte != 0xff);
+  
+}
 
 void setup() {
   
   Serial.begin(115200);
-  LCD.begin(2400);
+  // Wait for Rpi to initialize
+  wait_rpi_initialization();
+  
+  downlink.begin(HASP_BAUD_RATE);
   delay(500);
   
   message("Initializing...");
   //PlaySong(imperial_march, 14);
   
   setupPins();
-  LCD.write(12);
 
   message("Initializing RTC...");
   setupRTC();
@@ -128,7 +149,12 @@ void setup() {
   read_humidity.enable();
   //read_uv.enable();
   //read_accel.enable();
+
   
+  // Turn on pump
+  digitalWrite(PUMP_RELAY_PIN, LOW);
+  digitalWrite(SOLENOID_RELAY_PIN, LOW);
+
 }
 
 
@@ -136,17 +162,25 @@ float readTemp2()
 {
   return readTemp(TEMP_2_PIN).toFloat();
 }
-SMAFilter tmp_filter(10, readTemp2);
+
+float readTemp0()
+{
+  return readTemp(TEMP_0_PIN).toFloat();
+}
+
+float readPressure()
+{
+  return pressure_sensor.getPressure(ADC_512);
+}
+
+SMAFilter tmp0_filter(5, readTemp0);
+SMAFilter tmp2_filter(5, readTemp2);
+SMAFilter pressure_filter(5, readPressure);
 
 void loop() {
   readBNO055();
   rtc.update();
   scheduler.execute();
-
-  LCD.write(128);
-  LCD.println("T: " + String(tmp_filter.getFilteredSample()) + " " + String(readTemp(TEMP_0_PIN)));
-  LCD.write(148);
-  LCD.println("P: " + getPressure());
   delay(500);
 }
 

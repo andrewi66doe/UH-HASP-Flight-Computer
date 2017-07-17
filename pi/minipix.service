@@ -1,0 +1,12 @@
+Description=Minipix data collection script
+
+[Service]
+ExecStart=/home/pi/pixetrpi/control.py
+Type=simple
+WorkingDirectory=/home/pi/pixetrpi
+
+[Install]
+WantedBy=multi-user.target
+Alias=pypixet
+
+

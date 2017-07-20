@@ -1,5 +1,5 @@
 # Author: Kevin Portillo 
-# This script will create plots of any input .csv assuming two columns of data 
+# This script will create plots of all .csv in current directory
 
 import sys
 import pandas as pd

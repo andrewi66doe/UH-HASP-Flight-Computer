@@ -1,9 +1,8 @@
 # Author: Kevin Portillo 
 # This script will create plots of all .csv in current directory
 
-import sys, datetime, pylab, os, optparse
-import pandas as pd
-from matplotlib import pyplot as plt
+import sys, datetime, os, optparse
+import pandas as pd, matplotlib as plt
 
 if __name__ == "__main__":
 	# Command line parsing 

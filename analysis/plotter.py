@@ -38,7 +38,7 @@ if __name__ == "__main__":
 		plt.xlabel('Time')
 		plt.ylabel('Data')
 		plt.title(file)
+		plt.savefig(file +'.png')
 		plt.show()
-		pylab.savefig(file +'.png')
 	
 

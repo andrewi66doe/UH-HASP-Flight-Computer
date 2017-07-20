@@ -1,10 +1,9 @@
 # Author: Kevin Portillo 
 # This script will create plots of all .csv in current directory
 
-import sys
+import sys, datetime, pylab, os, optparse
 import pandas as pd
 from matplotlib import pyplot as plt
-import optparse
 
 if __name__ == "__main__":
 	# Command line parsing 
@@ -17,18 +16,29 @@ if __name__ == "__main__":
 	else: 
 		input_file = opts.input_file
 
-	print("\n".join(sys.argv))
-	# Read Columns 
-	# fields = ['time','presidents']
-	# with open(input_file, 'r', encoding='utf-8') as inFile:
-	# 	df = pd.read_csv(inFile, usecols=fields)
-	# 	time = df['time'].values.tolist()
-	# 	presidents = df['presidents'].values.tolist()
+	# Save only the filenames into 'filenames' list and remove the .csv part
+	# Also popping 'plotter.py' and '-i'
+	args = "\n".join(sys.argv).split()
+	args.pop(0) 
+	args.pop(0)
+	filenames = [os.path.splitext(each)[0] for each in args]
 
-	# plt.plot(time,presidents,'r')
-	# plt.xlabel('Time by Queaters Since 1945')
-	# plt.ylabel('% Approval Ratings')
-	# plt.title('Quarterly Approval Ratings of US Presidents Since 1945')
-	# plt.show()
+	# For each file, plot time vs data
+	# Title = filename
+	# x axis = time 
+	# y axis = data
+
+	for file in filenames:
+		with open(file+'.csv', 'r', encoding='utf-8') as inFile:
+			df = pd.read_csv(inFile, parse_dates=True, usecols=['Time','Data'])
+			time = pd.to_datetime(df['Time'],format='%H:%M:%S').values.tolist()
+			data = df['Data'].values.tolist()
+
+		plt.plot(time,data,'r')
+		plt.xlabel('Time')
+		plt.ylabel('Data')
+		plt.title(file)
+		plt.show()
+		pylab.savefig(file +'.png')
 	
 

@@ -25,18 +25,6 @@ if __name__ == "__main__":
 
 	for file in filenames:
 		with open(file +'.csv', 'r', encoding='utf-8') as inFile:
-			df = pd.read_csv(inFile, parse_dates=True, usecols=['Time','Data'])
-			time = pd.to_datetime(df['Time'],format='%H:%M:%S')
-			# times = plt.dates.date2num(time)
-			data = df['Data'].values.tolist()
-			
-		for e in time:
-			print(type(e),"\t", e)
-		plt.plot_date(time,data,'r')
-		# plt.xlabel('Time')
-		# plt.ylabel('Data')
-		# plt.title(file)
-		# plt.savefig(file +'.png')
-		plt.show()
-	
+			df = pd.read_csv(inFile, parse_dates = True, index_col = 0)
+		df.plot(lw=2, colormap='jet', marker='.', markersize=10, title=file).get_figure().savefig(file + '.png')
 

@@ -1,10 +1,11 @@
 #include "SparkFunDS3234RTC.h"
 
-#define TEMP_INTERVAL     2000
-#define PRESSURE_INTERVAL 2000
-#define UV_INTERVAL    2000
-#define TEMP_INTERVAL     2000
-#define HUMIDITY_INTERVAL 2000
+#define TEMP_INTERVAL     3000 // 3 seconds
+#define PRESSURE_INTERVAL 3500 // 3.5 seconds
+#define UV_INTERVAL       3000
+#define TEMP_INTERVAL     3000
+#define HUMIDITY_INTERVAL 3000
+#define GPS_INTERVAL      15000 // 15 seconds
 
 enum Device{
   // Analog devices
@@ -23,18 +24,19 @@ enum Device{
 
   // I2C devices
   GYRO,
-  ACCEL_X,
-  ACCEL_Y,
-  ACCEL_Z,
-  MAGNO,
+  ACCEL,
+  BNO055_TEMP,
+  MAG,
   IDK,
-  YAW,
-  PITCH,
-  ROLL,
-  RATE,
+  HEADING,
 
   // Digital devices
-  CLK
+  CLK,
+  GEOPOSITION,
+  GPS_TIME,
+  SAT_COUNT,
+  ALTITUDE
+  
 };
 
 String timeStamp();
@@ -75,35 +77,14 @@ void send_data(Device dev, String data)
     case PHOTO_2:
       device_str = "PHOTO_2: ";
       break;
-    case ACCEL_X:
-      device_str = "ACCEL_X: ";
-      break;
-    case ACCEL_Y:
-      device_str = "ACCEL_Y: ";
-      break;
-    case ACCEL_Z:
-      device_str = "ACCEL_Z: ";
+    case ACCEL:
+      device_str = "ACCEL: ";
       break;
     case GYRO:
       device_str = "GYRO: ";
       break;
-    case MAGNO:
+    case MAG:
       device_str = "MAGNO: ";
-      break;
-    case IDK:
-      device_str = "IDK: ";
-      break;
-    case YAW:
-      device_str = "YAW: ";
-      break; 
-    case PITCH:
-      device_str = "PITCH: ";
-      break; 
-    case ROLL:
-      device_str = "ROLL: ";
-      break;
-    case RATE:
-      device_str = "RATE: ";
       break;
     case PRESSURE_S:
       device_str = "PRESSURE_S: ";
@@ -114,6 +95,24 @@ void send_data(Device dev, String data)
    case CLK:
       device_str = "CLK: ";
       break;
+   case BNO055_TEMP:
+      device_str = "BNO055_TEMP: ";
+      break;
+   case HEADING:
+    device_str = "HEADING: ";
+    break;
+   case GEOPOSITION:
+    device_str = "GEOPOSITION: ";
+    break;
+   case GPS_TIME:
+    device_str = "GPS_TIME: ";
+    break;
+   case SAT_COUNT:
+    device_str = "SAT_COUNT: ";
+    break;
+   case ALTITUDE:
+    device_str = "ALTITUDE: ";
+    break;
     
   }
   
@@ -131,14 +130,6 @@ String timeStamp()
   if (rtc.second() < 10)
     timestamp = timestamp + "0";
   timestamp = timestamp + String(rtc.second()) + " "; // Print second
-  
-
-  if (rtc.is12Hour()) // If we're in 12-hour mode
-  {
-    // Use rtc.pm() to read the AM/PM state of the hour
-    if (rtc.pm()) Serial.print(" PM"); // Returns true if PM
-    else Serial.print(" AM");
-  }
   
   //Serial.print(" | ");
 

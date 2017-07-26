@@ -36,50 +36,38 @@
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 MS5803 pressure_sensor(ADDRESS_HIGH);
 
+float gyro_x, gyro_y, gyro_z;
+float accel_x, accel_y, accel_z;
+float mag_x, mag_y, mag_z;
 
 // Base line altitude for Houston TX, for testing purposes only don't touch otherwise
 static double BASE_ALTITUDE = 80.0;
 
+float CompassHeading();
 
-// This function read Nbytes bytes from I2C device at address Address. 
-// Put read bytes starting at register Register in the Data array. 
-void I2Cread(uint8_t Address, uint8_t Register, uint8_t Nbytes, uint8_t* Data)
-{
-  // Set register address
-  Wire.beginTransmission(Address);
-  Wire.write(Register);
-  Wire.endTransmission();
-  
-  // Read Nbytes
-  Wire.requestFrom(Address, Nbytes); 
-  uint8_t index=0;
-  while (Wire.available())
-    Data[index++]=Wire.read();
-  delay(40);
-}
+SMAFilter heading_filter(5, CompassHeading);
 
 
-// Write a byte (Data) in device (Address) at register (Register)
-void I2CwriteByte(uint8_t Address, uint8_t Register, uint8_t Data)
-{
-  // Set register address
-  Wire.beginTransmission(Address);
-  Wire.write(Register);
-  Wire.write(Data);
-  Wire.endTransmission();
-  delay(40);
-}
-
+int acc_counter = 0;
 void readBNO055()
 {
-  sensors_event_t event;
-  bno.getEvent(&event);
+  imu::Vector<3> accel;
+  imu::Vector<3> gyro;
+  imu::Vector<3> mag;
   
-  send_data(ACCEL_X, String(event.orientation.x));
-//  Serial.println(String(event.orientation.x) + " " + String(event.orientation.y) + " " + String(event.orientation.z));
-  send_data(ACCEL_Y, String(event.orientation.y));
-  send_data(ACCEL_Z, String(event.orientation.z));
+  mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+  gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+  accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   
+//  send_data(BNO055_TEMP, String(bno.getTemp()));
+//  send_data(HEADING, String(heading_filter.getFilteredSample()));
+  mag_x = mag.x();mag_y = mag.y(); mag_z = mag.z();
+  send_data(MAG, String(mag_x) + "," + String(mag_y) + "," + String(mag_z));
+  gyro_x = gyro.x();gyro_y = gyro.y();gyro_z = gyro.z();
+  send_data(GYRO, String(gyro_x) + "," + String(gyro_y) + "," + String(gyro_z));
+  accel_x = accel.x();accel_y = accel.y();accel_z = accel.z();
+  send_data(ACCEL, (String(accel_x) + "," + String(accel_y) + "," + String(accel_z)));
+
 }
 
 
@@ -173,22 +161,85 @@ void displayCalStatus(void)
   system = gyro = accel = mag = 0;
   bno.getCalibration(&system, &gyro, &accel, &mag);
 
-  LCD.write(12);
+  Serial.write(12);
 
     /* Display the individual values */
-  LCD.print("Sys:");
-  LCD.print(system, DEC);
-  LCD.print(" G:");
-  LCD.print(gyro, DEC);
-  LCD.print(" A:");
-  LCD.print(accel, DEC);
-  LCD.print(" M:");
-  LCD.print(mag, DEC);
-  LCD.println();
+  Serial.print("Sys:");
+  Serial.print(system, DEC);
+  Serial.print(" G:");
+  Serial.print(gyro, DEC);
+  Serial.print(" A:");
+  Serial.print(accel, DEC);
+  Serial.print(" M:");
+  Serial.print(mag, DEC);
+  Serial.println();
   delay(20);
   
 }
 
+void displaySensorOffsets(const adafruit_bno055_offsets_t &calibData)
+{
+    Serial.print("Accelerometer: ");
+    Serial.print(calibData.accel_offset_x); Serial.print(" ");
+    Serial.print(calibData.accel_offset_y); Serial.print(" ");
+    Serial.print(calibData.accel_offset_z); Serial.print(" ");
+
+    Serial.print("\nGyro: ");
+    Serial.print(calibData.gyro_offset_x); Serial.print(" ");
+    Serial.print(calibData.gyro_offset_y); Serial.print(" ");
+    Serial.print(calibData.gyro_offset_z); Serial.print(" ");
+
+    Serial.print("\nMag: ");
+    Serial.print(calibData.mag_offset_x); Serial.print(" ");
+    Serial.print(calibData.mag_offset_y); Serial.print(" ");
+    Serial.print(calibData.mag_offset_z); Serial.print(" ");
+
+    Serial.print("\nAccel Radius: ");
+    Serial.print(calibData.accel_radius);
+
+    Serial.print("\nMag Radius: ");
+    Serial.print(calibData.mag_radius);
+}
+
+
+
+void printOrientation()
+{
+  sensors_event_t event;
+  bno.getEvent(&event);
+
+            Serial.print("Orientation: ");
+            Serial.print(event.orientation.x, 4);
+            Serial.print(",");
+            Serial.print(event.orientation.y, 4);
+            Serial.print(",");
+            Serial.print(event.orientation.z, 4);
+
+            /* Optional: Display calibration status */
+//            displayCalStatus();
+
+            /* New line for the next sample */
+            Serial.println("");
+
+            /* Wait the specified delay before requesting new data */
+//            delay(BNO055_SAMPLERATE_DELAY_MS);
+}
+
+float CompassHeading()
+{
+  imu::Vector<3> mag;
+  float compass_heading;
+  
+  mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+  
+  compass_heading = atan2(mag.y(), mag.x());
+  
+  if(compass_heading < 0){
+    compass_heading += 2*PI;
+  }
+  compass_heading = compass_heading * 180/M_PI; 
+  return compass_heading;
+}
 
 void setupBNO055()
 {
@@ -227,7 +278,7 @@ void setupBNO055()
         eeAddress += sizeof(long);
         EEPROM.get(eeAddress, calibrationData);
 
-//        displaySensorOffsets(calibrationData);
+        displaySensorOffsets(calibrationData);
 
         Serial.println("\n\nRestoring Calibration data to the BNO055...");
         bno.setSensorOffsets(calibrationData);
@@ -256,8 +307,8 @@ void setupBNO055()
             bno.getEvent(&event);
             delay(500);
         }
-        LCD.write(12);
-        LCD.print("Calibrated!");
+        Serial.write(12);
+        Serial.print("Calibrated!");
     }
     else
     {
@@ -289,7 +340,7 @@ void setupBNO055()
     Serial.println("Calibration Results: ");
     adafruit_bno055_offsets_t newCalib;
     bno.getSensorOffsets(newCalib);
-//    displaySensorOffsets(newCalib);
+    displaySensorOffsets(newCalib);
 
     Serial.println("\n\nStoring calibration data to EEPROM...");
 
@@ -311,7 +362,8 @@ void setupBNO055()
 void setupRTC()
 {
   rtc.begin(DS13074_CS_PIN);
-  rtc.autoTime();
+  rtc.set12Hour();
+  //rtc.autoTime();
   digitalWrite(RTC_STATUS, HIGH);
 }
 

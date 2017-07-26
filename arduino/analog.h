@@ -45,16 +45,12 @@ String readHumidityReal(int pin)
 }
 
 
-String readUV(int pin)
+float readUV(int pin)
 {
   float reading = analogRead(pin);
-  float volts = reading * readVcc();
-  volts /= 1023.0;
-  Serial.print("[" + timeStamp() + "] " + "[DATA] PHOTO_" + pin +": ");
-  Serial.print(volts, 7);
-  Serial.print('\n');
+  float volts = reading/1024.0 * 5.0;
 
-  return String(volts);
+  return volts;
   
 }
 

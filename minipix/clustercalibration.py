@@ -42,7 +42,6 @@ def pixel_energy(frame):
     return E
 
 
-
 if __name__ == "__main__":
     data = PmfFile("carbon4_frame100.pmf")
     print(pixel_energy(data.get_frame_raw(0)))

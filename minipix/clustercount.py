@@ -134,10 +134,10 @@ class PmfFile:
             energy = 0
             x, y, tot = pixel
 
-            A = self.a[x][y]
-            T = self.t[x][y]
-            B = self.b[x][y] - A * T - self.c[x][y]
-            C = T * tot - self.b[x][y] * T - self.c[x][y]
+            A = self.a[y][x]
+            T = self.t[y][x]
+            B = self.b[y][x] - A * T - self.c[y][x]
+            C = T * tot - self.b[y][x] * T - self.c[y][x]
 
             if A != 0 and (B * B - 4.0 * A * C) >= 0:
                 energy = ((B * -1) + sqrt(B * B - 4.0 * A * C)) / 2.0 / A

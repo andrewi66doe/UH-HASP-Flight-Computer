@@ -3,6 +3,7 @@ import pdb
 import subprocess
 import sys
 import traceback
+import math
 
 from itertools import islice
 from math import sqrt
@@ -13,6 +14,13 @@ import numpy as np
 # Width and height of minipix detector
 DATA_FRAME_WIDTH = 256
 DATA_FRAME_HEIGHT = 256
+
+SMALL_BLOB = "SMALL_BLOB"
+HEAVY_TRACK = "HEAVY_TRACK"
+HEAVY_BLOB = "HEAVY_BLOB"
+MEDIUM_BLOB = "MEDIUM_BLOB"
+STRAIGHT_TRACK = "STRAIGHT_TRACK"
+LIGHT_TRACK = "LIGHT_TRACK"
 
 
 # Quick way of determining line count of a file
@@ -120,21 +128,23 @@ class PmfFile:
 
     def get_total_energy(self, pixels):
         total_energy = 0
+        energy = 0
 
         for pixel in pixels:
             energy = 0
             x, y, tot = pixel
 
-            a = self.a[y][x]
-            t = self.t[y][x]
-            b = self.b[y][x] - a * t - self.c[y][x]
-            c = t * tot - self.b[y][x] * t - self.c[y][x]
+            A = self.a[x][y]
+            T = self.t[x][y]
+            B = self.b[x][y] - A * T - self.c[x][y]
+            C = T * tot - self.b[x][y] * T - self.c[x][y]
 
-            if a != 0 and (b * b - 4.0 * a * c) >= 0:
-                energy = (b * -1 + sqrt(b * b - 4.0 * a * c)) / 2.0 / a
+            if A != 0 and (B * B - 4.0 * A * C) >= 0:
+                energy = ((B * -1) + sqrt(B * B - 4.0 * A * C)) / 2.0 / A
                 if energy < 0:
                     energy = 0
             total_energy += energy
+
         return energy
 
     def get_frame_e(self, frame):
@@ -178,6 +188,132 @@ class PmfFile:
             self.t = self.frame2nparray(file_t)
 
 
+# Begin code stolen from the internet
+# https://github.com/dbworth/minimum-area-bounding-rectangle
+
+# Copyright (c) 2013, David Butterworth, University of Queensland
+# All rights reserved.
+
+
+link = lambda a, b: np.concatenate((a, b[1:]))
+edge = lambda a, b: np.concatenate(([a], [b]))
+
+def qhull2d(sample):
+    def dome(sample, base):
+        h, t = base
+        dists = np.dot(sample - h, np.dot(((0, -1), (1, 0)), (t - h)))
+        outer = np.repeat(sample, dists > 0, 0)
+        if len(outer):
+            pivot = sample[np.argmax(dists)]
+            return link(dome(outer, edge(h, pivot)),
+                        dome(outer, edge(pivot, t)))
+        else:
+            return base
+
+    if len(sample) > 2:
+        axis = sample[:, 0]
+        base = np.take(sample, [np.argmin(axis), np.argmax(axis)], 0)
+        return link(dome(sample, base), dome(sample, base[::-1]))
+    else:
+        return sample
+
+
+def min_bounding_rect(hull_points_2d):
+    # Compute edges (x2-x1,y2-y1)
+    edges = np.zeros((len(hull_points_2d) - 1, 2))  # empty 2 column array
+    for i in range(len(edges)):
+        edge_x = hull_points_2d[i + 1, 0] - hull_points_2d[i, 0]
+        edge_y = hull_points_2d[i + 1, 1] - hull_points_2d[i, 1]
+        edges[i] = [edge_x, edge_y]
+    # print "Edges: \n", edges
+
+    # Calculate edge angles   atan2(y/x)
+    edge_angles = np.zeros((len(edges)))  # empty 1 column array
+    for i in range(len(edge_angles)):
+        edge_angles[i] = math.atan2(edges[i, 1], edges[i, 0])
+    # print "Edge angles: \n", edge_angles
+
+    # Check for angles in 1st quadrant
+    for i in range(len(edge_angles)):
+        edge_angles[i] = abs(edge_angles[i] % (math.pi / 2))  # want strictly positive answers
+    # print "Edge angles in 1st Quadrant: \n", edge_angles
+
+    # Remove duplicate angles
+    edge_angles = np.unique(edge_angles)
+    # print "Unique edge angles: \n", edge_angles
+
+    # Test each angle to find bounding box with smallest area
+    min_bbox = (0, sys.maxsize, 0, 0, 0, 0, 0, 0)  # rot_angle, area, width, height, min_x, max_x, min_y, max_y
+    # print"Testing", len(edge_angles), "possible rotations for bounding box... \n"
+    for i in range(len(edge_angles)):
+
+        # Create rotation matrix to shift points to baseline
+        # R = [ cos(theta)      , cos(theta-PI/2)
+        #       cos(theta+PI/2) , cos(theta)     ]
+        R = np.array([[math.cos(edge_angles[i]), math.cos(edge_angles[i] - (math.pi / 2))],
+                      [math.cos(edge_angles[i] + (math.pi / 2)), math.cos(edge_angles[i])]])
+        # print "Rotation matrix for ", edge_angles[i], " is \n", R
+
+        # Apply this rotation to convex hull points
+        rot_points = np.dot(R, np.transpose(hull_points_2d))  # 2x2 * 2xn
+        # print "Rotated hull points are \n", rot_points
+
+        # Find min/max x,y points
+        min_x = np.nanmin(rot_points[0], axis=0)
+        max_x = np.nanmax(rot_points[0], axis=0)
+        min_y = np.nanmin(rot_points[1], axis=0)
+        max_y = np.nanmax(rot_points[1], axis=0)
+        # print "Min x:", min_x, " Max x: ", max_x, "   Min y:", min_y, " Max y: ", max_y
+
+        # Calculate height/width/area of this bounding rectangle
+        width = max_x - min_x
+        height = max_y - min_y
+        area = width * height
+        # print "Potential bounding box ", i, ":  width: ", width, " height: ", height, "  area: ", area
+
+        # Store the smallest rect found first (a simple convex hull might have 2 answers with same area)
+        if (area < min_bbox[1]):
+            min_bbox = (edge_angles[i], area, width, height, min_x, max_x, min_y, max_y)
+            # Bypass, return the last found rect
+            # min_bbox = ( edge_angles[i], area, width, height, min_x, max_x, min_y, max_y )
+
+    # Re-create rotation matrix for smallest rect
+    angle = min_bbox[0]
+    R = np.array(
+        [[math.cos(angle), math.cos(angle - (math.pi / 2))], [math.cos(angle + (math.pi / 2)), math.cos(angle)]])
+    # print "Projection matrix: \n", R
+
+    proj_points = np.dot(R, np.transpose(hull_points_2d))  # 2x2 * 2xn
+
+    # min/max x,y points are against baseline
+    min_x = min_bbox[4]
+    max_x = min_bbox[5]
+    min_y = min_bbox[6]
+    max_y = min_bbox[7]
+    # print "Min x:", min_x, " Max x: ", max_x, "   Min y:", min_y, " Max y: ", max_y
+
+    # Calculate center point and project onto rotated frame
+    center_x = (min_x + max_x) / 2
+    center_y = (min_y + max_y) / 2
+    center_point = np.dot([center_x, center_y], R)
+    # print "Bounding box center point: \n", center_point
+
+    # Calculate corner points and project onto rotated frame
+    corner_points = np.zeros((4, 2))  # empty 2 column array
+    corner_points[0] = np.dot([max_x, min_y], R)
+    corner_points[1] = np.dot([min_x, min_y], R)
+    corner_points[2] = np.dot([min_x, max_y], R)
+    corner_points[3] = np.dot([max_x, max_y], R)
+    # print "Bounding box corner points: \n", corner_points
+
+    # print "Angle of rotation: ", angle, "rad  ", angle * (180/math.pi), "deg"
+
+    return (angle, min_bbox[1], min_bbox[2], min_bbox[3], center_point, corner_points)
+
+
+# End stolen code from the internet
+
+
 def is_inner_pixel(index, arr):
     px, py, _ = index
 
@@ -192,7 +328,7 @@ def is_inner_pixel(index, arr):
 
 
 # Iterative floodfill (Python doesn't optimize tail recursion)
-# list of pixel indices and their corresponding values
+# returns list of pixel indices and their corresponding values
 def floodfill(x, y, arr, threshold=0):
     to_fill = set()
     to_fill.add((x, y))
@@ -254,6 +390,53 @@ def centroid(pixels):
     return int(cx + 1), int(cy + 1), avg_cluster_value
 
 
+def analyze_cluster(data, frame, pixels):
+    points = [(pixel[0], pixel[1]) for pixel in pixels]
+
+    # Calculate convex hull for cluster
+    hull = qhull2d(np.array(points))
+    hull = hull[::-1]
+
+    # Calculate minimum spanning rectangle
+    rot_angle, area, width, height, center, _ = min_bounding_rect(hull)
+
+    # Centroid of the cluster
+    cluster_centroid = centroid(pixels)
+    # Total deposited energy for a given cluster
+    total_energy = data.get_total_energy(pixels)
+    # Number of inner pixels for a given cluster
+    inner_pixels = len(list(filter(lambda x: is_inner_pixel(x, frame), pixels)))
+    # Pixel with the maximum ToT
+    max_pixel = max(pixels, key=lambda x: x[2])
+    # Density of a cluster
+    density = len(pixels) / area
+
+    # Define length  as maximum of the two sides of the rectangle
+    length = max((width, height))
+    width = min((width, height))
+    import pdb;pdb.set_trace()
+
+    try:
+        lwratio = length / width
+    except ZeroDivisionError:
+        lwratio = 0
+
+    if inner_pixels == 0:
+        cluster_type = SMALL_BLOB
+    elif inner_pixels > 4 and lwratio > 1.25 and density > 0.3:
+        cluster_type = HEAVY_TRACK
+    elif inner_pixels > 4 and lwratio < 1.25 and density > 0.3:
+        cluster_type = HEAVY_BLOB
+    elif inner_pixels > 1 and lwratio < 1.25 and density > 0.3:
+        cluster_type = MEDIUM_BLOB
+    elif inner_pixels == 0 and lwratio > 8.0:
+        cluster_type = STRAIGHT_TRACK
+    else:
+        cluster_type = LIGHT_TRACK
+
+    return max_pixel, density, total_energy, rot_angle, cluster_centroid, cluster_type
+
+
 # Determines the number of clusters given a single frame of acquisition data
 def cluster_count(data, frame, threshold=0):
     clusters = 0
@@ -263,16 +446,7 @@ def cluster_count(data, frame, threshold=0):
         for pixel in row:
             if pixel.value > threshold and not pixel.filled:
                 pixels = floodfill(pixel.x, pixel.y, frame)
-                total_energy = data.get_total_energy(pixels)
-                inner_pixels = list(filter(lambda x: is_inner_pixel(x, frame), pixels))
-                max_p = max(pixels, key=lambda x: x[2])
-
-                cluster_info.append((clusters,
-                                     len(inner_pixels),
-                                     total_energy,
-                                     max_p,
-                                     medioid(pixels),
-                                     centroid(pixels)))
+                cluster_info.append(analyze_cluster(data, frame, pixels))
                 clusters += 1
 
     return cluster_info
@@ -287,17 +461,16 @@ def main(args):
     data.load_calib_c("c.txt")
     data.load_calib_t("t.txt")
 
-    #print("Processing {} frames...".format(data.num_frames))
+    print("Processing {} frames...".format(data.num_frames))
 
     for i, frame in enumerate(data.frames()):
+        print("Frame {}".format(i))
         energy = 0
         for cluster in cluster_count(data, frame, threshold=threshold):
             _, _, total_energy, _, _, _ = cluster
             energy += total_energy
+            print(cluster)
         print(energy)
-
-
-
 
 
 if __name__ == "__main__":

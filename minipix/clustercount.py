@@ -405,7 +405,7 @@ def analyze_cluster(data, frame, pixels):
     rot_angle, area, width, height, center, corners = min_bounding_rect(hull)
 
     # Centroid of the cluster
-    cluster_centroid = medioid(pixels)
+    cluster_centroid = centroid(pixels)
     # Total deposited energy for a given cluster
     total_energy = data.get_total_energy(pixels)
     # Number of inner pixels for a given cluster

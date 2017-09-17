@@ -3,6 +3,8 @@ from pygame.locals import *
 from time import sleep
 from clustercount import PmfFile, cluster_count
 
+import numpy as np
+
 arr = []
 
 RED = (255, 10, 10)
@@ -43,13 +45,15 @@ def do_visualization(file, frame):
     for cluster in cluster_info:
         y, x, _ = cluster[4]
         pixel = pygame.Surface((2, 2))
-        #label = myfont.render(str(round(cluster[2][2], 2)), 1, (255, 255, 0))
+        label = myfont.render(str(cluster[5]), 1, (255, 255, 0))
         pixel.fill(WHITE)
         draw = pygame.Rect(x * 2, y * 2, 2, 2)
-
+        rect_points = [np.flip(np.ceil(x), 0) for x in (cluster[6] + 1) * 2.0]
+        #pygame.draw.lines(screen, RED, False, rect_points)
+        pygame.draw.polygon(screen, RED, rect_points, 1)
         #pygame.draw.line(screen, RED, (x * 2, 0), (x * 2, 512))
         #pygame.draw.line(screen, RED, (0, y * 2), (512, y * 2))
-        #screen.blit(label, ((x * 2) + 5, (y * 2) + 5))
+        screen.blit(label, ((x * 2) + 5, (y * 2) + 5))
         screen.blit(pixel, draw)
     pygame.display.flip()
 

@@ -147,16 +147,19 @@ class PmfFile:
 
         return energy
 
-    def get_frame_e(self, frame):
+    def calib_loaded(self):
         calib_data = [self.a, self.b, self.c, self.t]
 
-        if not all(calib_data):
+        if not calib_data.all():
             raise Exception("Not all of the calibration files have been loaded, cannot generate e")
-        else:
-            ToT = frame2nparray(self.get_frame_raw(frame))
-            a, b, c, t = calib_data
 
-            return self._get_energy(ToT, a, b, c, t)
+    def get_frame_e(self, frame):
+        self.calib_loaded()
+
+        ToT = frame2nparray(self.get_frame_raw(frame))
+        a, b, c, t = calib_data
+
+        return self._get_energy(ToT, a, b, c, t)
 
     # Generator for frames
     def frames(self):
@@ -197,6 +200,7 @@ class PmfFile:
 
 link = lambda a, b: np.concatenate((a, b[1:]))
 edge = lambda a, b: np.concatenate(([a], [b]))
+
 
 def qhull2d(sample):
     def dome(sample, base):
@@ -308,7 +312,7 @@ def min_bounding_rect(hull_points_2d):
 
     # print "Angle of rotation: ", angle, "rad  ", angle * (180/math.pi), "deg"
 
-    return (angle, min_bbox[1], min_bbox[2], min_bbox[3], center_point, corner_points)
+    return angle, min_bbox[1], min_bbox[2], min_bbox[3], center_point, corner_points
 
 
 # End stolen code from the internet
@@ -398,43 +402,46 @@ def analyze_cluster(data, frame, pixels):
     hull = hull[::-1]
 
     # Calculate minimum spanning rectangle
-    rot_angle, area, width, height, center, _ = min_bounding_rect(hull)
+    rot_angle, area, width, height, center, corners = min_bounding_rect(hull)
 
     # Centroid of the cluster
-    cluster_centroid = centroid(pixels)
+    cluster_centroid = medioid(pixels)
     # Total deposited energy for a given cluster
     total_energy = data.get_total_energy(pixels)
     # Number of inner pixels for a given cluster
     inner_pixels = len(list(filter(lambda x: is_inner_pixel(x, frame), pixels)))
     # Pixel with the maximum ToT
     max_pixel = max(pixels, key=lambda x: x[2])
-    # Density of a cluster
-    density = len(pixels) / area
 
     # Define length  as maximum of the two sides of the rectangle
-    length = max((width, height))
-    width = min((width, height))
-    import pdb;pdb.set_trace()
+    length = max([width, height])
+    width = min([width, height])
 
-    try:
+    pixelcount = len(pixels)
+
+    # Calculating convex hull for only one pixel leads to some strange behavior,
+    # so special case for when n=1
+    if pixelcount > 1:
+        density = pixelcount / area
         lwratio = length / width
-    except ZeroDivisionError:
-        lwratio = 0
+    else:
+        lwratio = 1
+        density = 1
 
-    if inner_pixels == 0:
+    if inner_pixels == 0 and pixelcount <= 4:
         cluster_type = SMALL_BLOB
     elif inner_pixels > 4 and lwratio > 1.25 and density > 0.3:
         cluster_type = HEAVY_TRACK
-    elif inner_pixels > 4 and lwratio < 1.25 and density > 0.3:
+    elif inner_pixels > 4 and lwratio <= 1.25 and density > 0.5:
         cluster_type = HEAVY_BLOB
-    elif inner_pixels > 1 and lwratio < 1.25 and density > 0.3:
+    elif inner_pixels > 1 and lwratio <= 1.25 and density > 0.5:
         cluster_type = MEDIUM_BLOB
     elif inner_pixels == 0 and lwratio > 8.0:
         cluster_type = STRAIGHT_TRACK
     else:
         cluster_type = LIGHT_TRACK
 
-    return max_pixel, density, total_energy, rot_angle, cluster_centroid, cluster_type
+    return max_pixel, density, total_energy, rot_angle, cluster_centroid, cluster_type, corners
 
 
 # Determines the number of clusters given a single frame of acquisition data

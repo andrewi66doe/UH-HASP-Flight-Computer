@@ -136,16 +136,18 @@ class PmfFile:
 
             A = self.a[y][x]
             T = self.t[y][x]
-            B = self.b[y][x] - A * T - self.c[y][x]
+            B = self.b[y][x] - A * T - tot
             C = T * tot - self.b[y][x] * T - self.c[y][x]
 
             if A != 0 and (B * B - 4.0 * A * C) >= 0:
                 energy = ((B * -1) + sqrt(B * B - 4.0 * A * C)) / 2.0 / A
                 if energy < 0:
                     energy = 0
+                #print(energy)
+            #print(total_energy)
             total_energy += energy
 
-        return energy
+        return total_energy
 
     def calib_loaded(self):
         calib_data = [self.a, self.b, self.c, self.t]
@@ -401,7 +403,7 @@ def analyze_cluster(data, frame, pixels):
     hull = qhull2d(np.array(points))
     hull = hull[::-1]
 
-    # Calculate minimum spanning rectangle
+    # Calculate minimum bounding rectangle
     rot_angle, area, width, height, center, corners = min_bounding_rect(hull)
 
     # Centroid of the cluster
@@ -425,7 +427,7 @@ def analyze_cluster(data, frame, pixels):
         density = pixelcount / area
         lwratio = length / width
     else:
-        lwratio = 1
+        lwratio = pixelcount
         density = 1
 
     if inner_pixels == 0 and pixelcount <= 4:
@@ -468,16 +470,17 @@ def main(args):
     data.load_calib_c("c.txt")
     data.load_calib_t("t.txt")
 
-    print("Processing {} frames...".format(data.num_frames))
+    #print("Processing {} frames...".format(data.num_frames))
 
     for i, frame in enumerate(data.frames()):
-        print("Frame {}".format(i))
+        #print("Frame {}".format(i))
         energy = 0
         for cluster in cluster_count(data, frame, threshold=threshold):
-            _, _, total_energy, _, _, _ = cluster
+            _, _, total_energy, _, _, _,_ = cluster
             energy += total_energy
-            print(cluster)
+            #print(cluster)
         print(energy)
+
 
 
 if __name__ == "__main__":

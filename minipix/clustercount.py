@@ -4,6 +4,7 @@ import subprocess
 import sys
 import traceback
 import math
+import pickle
 
 from itertools import islice
 from math import sqrt
@@ -128,7 +129,6 @@ class PmfFile:
 
     def get_total_energy(self, pixels):
         total_energy = 0
-        energy = 0
 
         for pixel in pixels:
             energy = 0
@@ -143,8 +143,6 @@ class PmfFile:
                 energy = ((B * -1) + sqrt(B * B - 4.0 * A * C)) / 2.0 / A
                 if energy < 0:
                     energy = 0
-                #print(energy)
-            #print(total_energy)
             total_energy += energy
 
         return total_energy
@@ -470,18 +468,26 @@ def main(args):
     data.load_calib_c("c.txt")
     data.load_calib_t("t.txt")
 
+    cluster_out = open("clusters.pkl", 'wb')
+    frames = {}
+
     #print("Processing {} frames...".format(data.num_frames))
 
     for i, frame in enumerate(data.frames()):
-        #print("Frame {}".format(i))
+        # print("Frame {}".format(i))
         energy = 0
         for cluster in cluster_count(data, frame, threshold=threshold):
             _, _, total_energy, _, _, _,_ = cluster
             energy += total_energy
-            #print(cluster)
+
+            if not frames.get(i, False):
+                frames[i] = []
+            frames[i].append(cluster)
+
+            # print(cluster)
         print(energy)
-
-
+    pickle.dump(frames, cluster_out)
+    cluster_out.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Determine the cluster count for each frame in a pmf acquisition file")

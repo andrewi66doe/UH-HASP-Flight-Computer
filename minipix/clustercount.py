@@ -5,10 +5,12 @@ import sys
 import traceback
 import math
 import pickle
+import re
 
 from itertools import islice
 from math import sqrt
 from pprint import pprint
+from dateutil import parser as dateparser
 
 import numpy as np
 
@@ -85,6 +87,9 @@ class PmfFile:
         self.filename = filename
         self.num_frames = int(num_lines / DATA_FRAME_HEIGHT)
 
+        self.timestamps = []
+        self.dsc_loaded = False
+
         self.a = None
         self.b = None
         self.c = None
@@ -100,7 +105,7 @@ class PmfFile:
         start = frame * DATA_FRAME_HEIGHT
         end = (frame * DATA_FRAME_HEIGHT) + DATA_FRAME_HEIGHT
 
-        lines = list(islice(pmf_file, start, end))
+        lines = islice(pmf_file, start, end)
 
         return lines
 
@@ -169,6 +174,28 @@ class PmfFile:
     def _get_energy(self, ToT, a, b, c, d):
         # Need to fully understand what equation to use to calculate this
         raise NotImplemented
+
+    def get_frame_timestamp(self, frame):
+        if self.dsc_loaded:
+            return self.timestamps[frame]
+        else:
+            raise Exception(".dsc file not loaded, cannot determine frame timestamp")
+
+    def load_dsc(self, filename=None):
+        if filename:
+            file = filename
+        else:
+            file = self.filename + ".dsc"
+
+        dsc = open(file, "r")
+
+        timestamp_regex = '.{3}\s+.{3}\s+\d+\s\d\d:\d\d:\d\d\.\d{6}\s\d{4}'
+
+        for line in dsc.readlines():
+            if re.match(timestamp_regex, line):
+                time = dateparser.parse(line.strip())
+                self.timestamps.append(time)
+        self.dsc_loaded = True
 
     def load_calib_a(self, filename):
         with open(filename, 'r') as a:
@@ -468,6 +495,8 @@ def main(args):
     data.load_calib_c("c.txt")
     data.load_calib_t("t.txt")
 
+    data.load_dsc()
+
     cluster_out = open("clusters.pkl", 'wb')
     frames = {}
 
@@ -485,6 +514,7 @@ def main(args):
             frames[i].append(cluster)
 
             # print(cluster)
+        print(data.get_frame_timestamp(i), end=",")
         print(energy)
     pickle.dump(frames, cluster_out)
     cluster_out.close()

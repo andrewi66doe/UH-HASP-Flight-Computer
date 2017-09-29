@@ -182,6 +182,10 @@ class PmfFile:
             raise Exception(".dsc file not loaded, cannot determine frame timestamp")
 
     def load_dsc(self, filename=None):
+
+        if self.timestamps:
+            self.timestamps = []
+
         if filename:
             file = filename
         else:
@@ -189,6 +193,7 @@ class PmfFile:
 
         dsc = open(file, "r")
 
+        # Use regex magic to parse out timestamps
         timestamp_regex = '.{3}\s+.{3}\s+\d+\s\d\d:\d\d:\d\d\.\d{6}\s\d{4}'
 
         for line in dsc.readlines():
@@ -457,9 +462,9 @@ def analyze_cluster(data, frame, pixels):
 
     if inner_pixels == 0 and pixelcount <= 4:
         cluster_type = SMALL_BLOB
-    elif inner_pixels > 4 and lwratio > 1.25 and density > 0.3:
+    elif inner_pixels > 6 and lwratio > 1.25 and density > 0.3:
         cluster_type = HEAVY_TRACK
-    elif inner_pixels > 4 and lwratio <= 1.25 and density > 0.5:
+    elif inner_pixels > 6 and lwratio <= 1.25 and density > 0.5:
         cluster_type = HEAVY_BLOB
     elif inner_pixels > 1 and lwratio <= 1.25 and density > 0.5:
         cluster_type = MEDIUM_BLOB
@@ -479,8 +484,8 @@ def cluster_count(data, frame, threshold=0):
     for row in frame:
         for pixel in row:
             if pixel.value > threshold and not pixel.filled:
-                pixels = floodfill(pixel.x, pixel.y, frame)
-                cluster_info.append(analyze_cluster(data, frame, pixels))
+                cluster = floodfill(pixel.x, pixel.y, frame)
+                cluster_info.append(analyze_cluster(data, frame, cluster))
                 clusters += 1
 
     return cluster_info
@@ -497,27 +502,30 @@ def main(args):
 
     data.load_dsc()
 
-    cluster_out = open("clusters.pkl", 'wb')
+    cluster_out = open(args.outfile, 'wb')
     frames = {}
 
-    #print("Processing {} frames...".format(data.num_frames))
+    # print("Processing {} frames...".format(data.num_frames))
 
     for i, frame in enumerate(data.frames()):
         # print("Frame {}".format(i))
         energy = 0
         for cluster in cluster_count(data, frame, threshold=threshold):
-            _, _, total_energy, _, _, _,_ = cluster
+            _, _, total_energy, _, _, _, _ = cluster
             energy += total_energy
 
             if not frames.get(i, False):
-                frames[i] = []
-            frames[i].append(cluster)
+                frames[i] = {"acq_time": data.get_frame_timestamp(i),
+                             "clusters": []}
+            frames[i]["clusters"].append(cluster)
 
             # print(cluster)
+        print(i, end=",")
         print(data.get_frame_timestamp(i), end=",")
         print(energy)
     pickle.dump(frames, cluster_out)
     cluster_out.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Determine the cluster count for each frame in a pmf acquisition file")
@@ -527,6 +535,11 @@ if __name__ == "__main__":
                         dest='threshold',
                         default=1,
                         help='Threshold')
+    parser.add_argument('-o',
+                        action='store',
+                        dest='outfile',
+                        default='clusters.pkl',
+                        help='Binary output filename, defaults to clusters.pkl')
     args = parser.parse_args()
 
     try:

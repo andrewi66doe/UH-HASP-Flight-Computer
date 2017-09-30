@@ -68,8 +68,6 @@ if __name__ == "__main__":
 
     data = pickle.load(serialized)
 
-    start = dateparser.parse("09/04/17 08:56:23 GMT")
-
     file = PmfFile("HASPDATA/thurs_test36.pmf")
     file.load_dsc()
 

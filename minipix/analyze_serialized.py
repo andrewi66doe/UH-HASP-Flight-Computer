@@ -82,7 +82,7 @@ def get_cluster_energy(file, data):
             csvwriter.writerow(cluster)
 
 
-def get_energy_distribution():
+def get_energy_distribution(file, data):
     cluster_types = {
         "SMALL_BLOB": [],
         "HEAVY_TRACK": [],

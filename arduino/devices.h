@@ -1,11 +1,12 @@
-#include "SparkFunDS3234RTC.h"
+#include <SPI.h>
+#include <SparkFunDS3234RTC.h>
 
 #define TEMP_INTERVAL     3000 // 3 seconds
 #define PRESSURE_INTERVAL 3500 // 3.5 seconds
 #define UV_INTERVAL       3000
 #define TEMP_INTERVAL     3000
 #define HUMIDITY_INTERVAL 3000
-#define GPS_INTERVAL      15000 // 15 seconds
+#define GPS_INTERVAL      2000 // 15 seconds
 
 enum Device{
   // Analog devices
@@ -35,7 +36,8 @@ enum Device{
   GEOPOSITION,
   GPS_TIME,
   SAT_COUNT,
-  ALTITUDE
+  ALTITUDE,
+  ORIENTATION
   
 };
 
@@ -113,12 +115,29 @@ void send_data(Device dev, String data)
    case ALTITUDE:
     device_str = "ALTITUDE: ";
     break;
+   case ORIENTATION:
+    device_str = "ORIENTATION: ";
+    break;
     
   }
   
   Serial.println("[" + timeStamp() + "] " + "[DATA] " + device_str + data); 
 }
 
+void send_data(Device dev, float data)
+{
+  send_data(dev, String(data));
+}
+
+void send_data(Device dev, int data)
+{
+  send_data(dev, String(data));
+}
+
+void send_data(Device dev, short unsigned int data)
+{
+  send_data(dev, String(data));
+}
 
 String timeStamp()
 {
@@ -130,13 +149,7 @@ String timeStamp()
   if (rtc.second() < 10)
     timestamp = timestamp + "0";
   timestamp = timestamp + String(rtc.second()) + " "; // Print second
-  
-  //Serial.print(" | ");
 
-  // Few options for printing the day, pick one:
-  //Serial.print(rtc.dayStr()); // Print day string
-  //Serial.print(rtc.dayC()); // Print day character
-  //Serial.print(rtc.day()); // Print day integer (1-7, Sun-Sat)
   timestamp = timestamp + String(rtc.month()) + "/" + String(rtc.date()) + "/" + String(rtc.year());
 
   return timestamp;

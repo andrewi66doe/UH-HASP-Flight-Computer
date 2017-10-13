@@ -6,11 +6,13 @@ import traceback
 import math
 import pickle
 import re
+import itertools
 
 from itertools import islice
-from math import sqrt
+from math import sqrt, isclose
 from pprint import pprint
 from dateutil import parser as dateparser
+from decimal import Decimal
 
 import numpy as np
 
@@ -27,6 +29,7 @@ LIGHT_TRACK = "LIGHT_TRACK"
 
 
 # Quick way of determining line count of a file
+# Note: This is not portable to non unix like systems
 def file_len(fname):
     p = subprocess.Popen(['wc', '-l', fname], stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
@@ -170,10 +173,6 @@ class PmfFile:
     def frames(self):
         for i in range(self.num_frames):
             yield self.get_frame(i)
-
-    def _get_energy(self, ToT, a, b, c, d):
-        # Need to fully understand what equation to use to calculate this
-        raise NotImplemented
 
     def get_frame_timestamp(self, frame):
         if self.dsc_loaded:
@@ -394,6 +393,13 @@ def distance(a, b):
     return sqrt(x ** 2 + y ** 2 + z ** 2)
 
 
+def distance2d(a, b):
+    x = a[0] - b[0]
+    y = a[1] - b[1]
+
+    return sqrt(x ** 2 + y ** 2)
+
+
 def medioid(pixels):
     # Brute force solution, could probably use memoization here
     pixel_dict = {}
@@ -426,6 +432,80 @@ def centroid(pixels):
     return int(cx + 1), int(cy + 1), avg_cluster_value
 
 
+def get_intersection(line1, line2):
+    l1 = np.insert(line1, 1, -1)
+    l2 = np.insert(line2, 1, -1)
+    x, y, z = np.cross(l1, l2)
+    return np.hstack([x, y]) / z
+
+
+def lin_equ(l1, l2):
+    a = (l2[1] - l1[1])
+    b = (l2[0] - l1[0])
+
+    m = a / b
+    c = (l2[1] - m * l2[0])
+
+    return m, c
+
+
+# Checks if c exists on line segment from a to b
+def is_between(a, b, c):
+    s = np.array([distance2d(a, c) + distance2d(c, b)])
+    d = np.array([distance2d(a, b)])
+    return np.isclose(s, d)
+
+
+def track_length(pixels, bounding_box, dim):
+    x = np.array([pixel[0] for pixel in pixels])
+    y = np.array([pixel[1] for pixel in pixels])
+
+    pairs = itertools.combinations(bounding_box, 2)
+    dim = np.array(dim)
+
+    sides = filter(lambda x:
+                   np.isclose(np.array([distance2d(x[0], x[1])]), dim[0]) or np.isclose(
+                       np.array([distance2d(x[0], x[1])]), dim[1]),
+                   pairs)
+
+    # Least squares fit for cluster
+    A = np.vstack((x, np.ones(len(x)))).T
+    lsqfit = np.linalg.lstsq(A, y)[0]
+
+    bbox_points = [(x[0], x[1]) for x in bounding_box]
+    # If we don't have four distinct points to work off of then there's not much we can do
+    if len(set(bbox_points)) < 4:
+        return None
+
+    intersections = []
+
+    # Check intersection on each side of bounding box
+    for side in sides:
+
+        p1, p2 = side
+        m, c = lin_equ(p1, p2)
+        lsqfit_m, lsqfit_c = lsqfit
+
+        # If slope is undefined i.e a vertical line
+        if np.isinf(m):
+            x = p1[0]
+            intersection = (x, lsqfit_m * x + lsqfit_c)
+        else:
+            intersection = get_intersection(lsqfit, (m, c))
+
+        # Use only intersections that actually lie inside the box
+        if is_between(p1, p2, intersection):
+            intersections.append(intersection)
+    try:
+        i1, i2 = intersections
+    except:
+        _, _, tb = sys.exc_info()
+        traceback.print_exc()
+        pdb.post_mortem(tb)
+
+    return np.array([i1, i2])
+
+
 def analyze_cluster(data, frame, pixels):
     points = [(pixel[0], pixel[1]) for pixel in pixels]
 
@@ -451,6 +531,8 @@ def analyze_cluster(data, frame, pixels):
 
     pixelcount = len(pixels)
 
+    trk_len = track_length(pixels, corners, (length, width))
+
     # Calculating convex hull for only one pixel leads to some strange behavior,
     # so special case for when n=1
     if pixelcount > 1:
@@ -473,7 +555,7 @@ def analyze_cluster(data, frame, pixels):
     else:
         cluster_type = LIGHT_TRACK
 
-    return max_pixel, density, total_energy, rot_angle, cluster_centroid, cluster_type, corners
+    return max_pixel, density, total_energy, rot_angle, cluster_centroid, cluster_type, corners, trk_len
 
 
 # Determines the number of clusters given a single frame of acquisition data
@@ -507,8 +589,9 @@ def main(args):
 
     # print("Processing {} frames...".format(data.num_frames))
 
+    # Loop through each frame and place calculated track parameters into a dictionary
     for i, frame in enumerate(data.frames()):
-        # print("Frame {}".format(i))
+        print("Frame {}".format(i))
         energy = 0
         for cluster in cluster_count(data, frame, threshold=threshold):
             _, _, total_energy, _, _, _, _ = cluster
@@ -519,10 +602,9 @@ def main(args):
                              "clusters": []}
             frames[i]["clusters"].append(cluster)
 
-            # print(cluster)
-        print(i, end=",")
-        print(data.get_frame_timestamp(i), end=",")
-        print(energy)
+            print(cluster)
+
+    # Serialize the dictionary for analysis later
     pickle.dump(frames, cluster_out)
     cluster_out.close()
 

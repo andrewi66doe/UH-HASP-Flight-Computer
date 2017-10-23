@@ -436,7 +436,8 @@ def get_intersection(line1, line2):
     l1 = np.insert(line1, 1, -1)
     l2 = np.insert(line2, 1, -1)
     x, y, z = np.cross(l1, l2)
-    return np.hstack([x, y]) / z
+    a = np.hstack([x, y]) / z
+    return float(a[0]), float(a[1])
 
 
 def lin_equ(l1, l2):
@@ -447,7 +448,6 @@ def lin_equ(l1, l2):
     c = (l2[1] - m * l2[0])
 
     return m, c
-
 
 # Checks if c exists on line segment from a to b
 def is_between(a, b, c):
@@ -496,12 +496,9 @@ def track_length(pixels, bounding_box, dim):
         # Use only intersections that actually lie inside the box
         if is_between(p1, p2, intersection):
             intersections.append(intersection)
-    try:
-        i1, i2 = intersections
-    except:
-        _, _, tb = sys.exc_info()
-        traceback.print_exc()
-        pdb.post_mortem(tb)
+
+    i1 = intersections[0]
+    i2 = intersections[1]
 
     return np.array([i1, i2])
 

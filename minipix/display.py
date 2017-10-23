@@ -99,12 +99,16 @@ if __name__ == "__main__":
     file.load_calib_b("b.txt")
     file.load_calib_c("c.txt")
     file.load_calib_t("t.txt")
+    file.load_dsc()
 
     clusters = do_visualization(file, frame)
     visualization_types = ['bb', 'type', 'track']
+
     vtype = 0
+
     while not done:
-        frame_label = myfont.render("Frame {} of {} Clusters: {}".format(frame, file.num_frames-1, clusters), 1, (255, 255, 0))
+        time = file.get_frame_timestamp(frame)
+        frame_label = myfont.render("Frame {} of {} Clusters: {} Time: {}".format(frame, file.num_frames-1, clusters, time), 1, (255, 255, 0))
 
         screen.blit(frame_label, (5, 0))
         pygame.display.flip()
@@ -123,5 +127,8 @@ if __name__ == "__main__":
                     clusters = do_visualization(file, frame, mode=visualization_types[vtype])
                 if event.key == pygame.K_UP:
                     vtype = (vtype + 1) % len(visualization_types)
+                    do_visualization(file, frame, mode=visualization_types[vtype])
+                if event.key == pygame.K_DOWN:
+                    vtype = (vtype - 1) % len(visualization_types)
                     do_visualization(file, frame, mode=visualization_types[vtype])
 

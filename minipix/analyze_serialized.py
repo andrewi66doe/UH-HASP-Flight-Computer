@@ -1,9 +1,14 @@
 import pickle
 import csv
 import pytz
+
+import matplotlib.mlab as mlab
+import matplotlib.pyplot as plt
+
 from clustercount import PmfFile
 from pprint import pprint
 from dateutil import parser as dateparser
+from numpy import std, arange
 
 cluster_types = ["SMALL_BLOB", "HEAVY_TRACK", "HEAVY_BLOB", "MEDIUM_BLOB", "STRAIGHT_TRACK", "LIGHT_TRACK"]
 
@@ -83,6 +88,7 @@ def get_cluster_energy(file, data):
 
 
 def get_energy_distribution(file, data):
+
     cluster_types = {
         "SMALL_BLOB": [],
         "HEAVY_TRACK": [],
@@ -91,7 +97,6 @@ def get_energy_distribution(file, data):
         "STRAIGHT_TRACK": [],
         "LIGHT_TRACK": []
     }
-
     for frame in range(file.num_frames):
         frame_data = data.get(frame, None)
 
@@ -103,7 +108,7 @@ def get_energy_distribution(file, data):
                 type = cluster[5]
                 energy = cluster[2]
                 cluster_types[type].append((str(acq_time), type, str(energy)))
-
+    """
     for cluster_type in cluster_types:
         filename = cluster_type + "_dist" + ".csv"
 
@@ -116,6 +121,23 @@ def get_energy_distribution(file, data):
         csvwriter.writerow(["Range", "Count"])
         for r in energy_distribution:
             csvwriter.writerow([r, energy_distribution[r]])
+    """
+    fig, ax = plt.subplots()
+    for cluster_type in cluster_types:
+        energy = [float(cluster[2]) for cluster in cluster_types[cluster_type]]
+
+        mu = sum(energy)/len(energy)
+        sigma = std(energy)
+        n, bins, patches = ax.hist(energy, bins=arange(0, 10000, 5))
+
+        y = mlab.normpdf(bins, mu, sigma)
+        ax.plot(bins, y, '--')
+
+    ax.set_xlabel('Energy')
+    ax.set_ylabel('Probability Density')
+    ax.set_title('Light Track Frequency Distribution')
+    fig.tight_layout()
+    plt.show()
 
 
 def normalized_distribution(data, window):
@@ -144,10 +166,10 @@ if __name__ == "__main__":
 
     data = pickle.load(serialized)
 
-    file = PmfFile("HASPDATA/thurs_test36.pmf")
-    file.load_dsc()
+    pmffile = PmfFile("HASPDATA/thurs_test36.pmf")
+    pmffile.load_dsc()
 
-    get_energy_distribution()
+    get_energy_distribution(pmffile, data)
     #get_cluster_energy(file, data)
     # get_cluster_count(file, data)
     # get_energy(file, data)
